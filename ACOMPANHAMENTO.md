@@ -1,9 +1,9 @@
 # Acompanhamento - Mini Desafio RAG VendeFácil
 
-**Integrante 1:** Nome Completo - [@usuario-github](https://github.com/usuario-github)
+**Integrante 1:** Maria Eduarda Ribeiro da Silva - [@eduardaribs](https://github.com/eduardaribs)
 **Integrante 2:** Nome Completo - [@usuario-github](https://github.com/usuario-github)
 
-**Repositório:** `rag-vendefacil-<sobrenome1>-<sobrenome2>`
+**Repositório:** `rag-vendefacil-18-ribeiro-ramos`
 
 ---
 
@@ -27,13 +27,22 @@
 
 ---
 
-## Encontro 1 - AAAA-MM-DD
+## Encontro 1 - 2026-08-24
 
 **Etapa:** 1 - Ingestão heterogênea, metadados e indexação vetorial
 
-### Relato individual - [Nome do Integrante 1]
+### Relato individual - Maria Eduarda Ribeiro da Silva
 
-<!-- Escreva você mesmo, em primeira pessoa. O que implementou, que decisão tomou e por quê, onde travou. -->
+Neste encontro, fiquei responsável pela ingestão dos dados estruturados e semiestruturados nos formatos CSV, JSON e JSONL. Inicialmente, inspecionei os arquivos disponíveis no repositório para compreender sua estrutura, os campos existentes e definir a estratégia de transformação dos registros em documentos para o pipeline RAG.
+
+Implementei o arquivo `src/ingest_structured.py`, adotando a estratégia de um registro por chunk para os dados tabulares e um ticket por chunk para o arquivo JSONL. Na serialização, transformei os registros em textos descritivos em linguagem natural, buscando preservar as informações relevantes para a recuperação por embeddings.
+
+Também implementei e padronizei os metadados obrigatórios `source_file`, `doc_type`, `chunk_id` e `sensitivity`. Quando aplicável, acrescentei metadados específicos, como `customer_id`, `state`, `module`, `priority`, `status` e `date`. Para os registros de funcionários, defini `sensitivity` como `restrito`, considerando a presença de informações sensíveis, como dados de identificação e remuneração.
+
+Após finalizar meu loader, integrei os documentos estruturados e semiestruturados aos documentos não estruturados implementados pelo meu colega por meio do `src/ingest.py`. O pipeline integrado resultou em 5.721 chunks. Em seguida, validei a presença dos metadados obrigatórios e verifiquei a unicidade dos `chunk_id`.
+
+Durante o desenvolvimento, utilizei o ChatGPT como apoio para estruturar inicialmente os loaders, compreender erros encontrados durante a execução e revisar a integração. As sugestões foram analisadas e ajustadas de acordo com a estrutura real dos arquivos do repositório e com os requisitos definidos no desafio.
+
 
 ### Relato individual - [Nome do Integrante 2]
 
