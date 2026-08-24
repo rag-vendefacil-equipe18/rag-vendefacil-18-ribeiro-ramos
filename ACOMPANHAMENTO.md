@@ -1,7 +1,7 @@
 # Acompanhamento - Mini Desafio RAG VendeFácil
 
 **Integrante 1:** Maria Eduarda Ribeiro da Silva - [@eduardaribs](https://github.com/eduardaribs)
-**Integrante 2:** Nome Completo - [@usuario-github](https://github.com/usuario-github)
+**Integrante 2:** Eridalgo Ramos da Silva - [@EridalgoRamos](https://github.com/EridalgoRamos)
 
 **Repositório:** `rag-vendefacil-18-ribeiro-ramos`
 
@@ -44,9 +44,18 @@ Após finalizar meu loader, integrei os documentos estruturados e semiestruturad
 Durante o desenvolvimento, utilizei o ChatGPT como apoio para estruturar inicialmente os loaders, compreender erros encontrados durante a execução e revisar a integração. As sugestões foram analisadas e ajustadas de acordo com a estrutura real dos arquivos do repositório e com os requisitos definidos no desafio.
 
 
-### Relato individual - [Nome do Integrante 2]
+### Relato individual - Eridalgo Ramos da Silva
 
-<!-- Escreva você mesmo, em primeira pessoa. O que implementou, que decisão tomou e por quê, onde travou. -->
+Neste encontro, fiquei responsável pela ingestão dos documentos não estruturados nos formatos Markdown, PDF e TXT. Inicialmente, inspecionei os arquivos disponíveis no repositório para compreender a estrutura e definir uma estratégia de chunking adequada para cada formato.
+
+Implementei o arquivo `src/ingest_unstructured.py`. Para os documentos Markdown, utilizei a estrutura de títulos e seções como referência para preservar a organização do conteúdo, com divisão adicional para seções maiores. Para os arquivos PDF, utilizei a extração do conteúdo textual e divisão respeitando a estrutura dos textos. Nos arquivos TXT, tratei as mensagens de e-mail de forma separada antes da divisão por tamanho.
+
+Também apliquei aos documentos os metadados padronizados do projeto, incluindo `source_file`, `doc_type`, `chunk_id` e `sensitivity`, além de outros campos quando aplicáveis. Após os testes individuais, minha implementação foi integrada ao loader dos dados estruturados e semiestruturados desenvolvido pela Eduarda.
+
+Na integração dos dois loaders, o pipeline completo resultou em 5.721 chunks. Também revisamos a presença dos metadados obrigatórios e a identificação dos chunks antes de avançar para a etapa de indexação vetorial.
+
+Utilizei o ChatGPT como apoio durante a organização e revisão da implementação. As sugestões foram verificadas e adaptadas de acordo com a estrutura real dos documentos e com as estratégias de chunking exigidas no desafio.
+
 
 ### Resumo do dia (escrito em conjunto)
 
