@@ -60,19 +60,39 @@ Utilizei o ChatGPT como apoio durante a organização e revisão da implementaç
 ### Resumo do dia (escrito em conjunto)
 
 **Entregamos hoje:**
--
+- Realizamos a inspeção inicial dos arquivos disponibilizados no repositório e dividimos as responsabilidades de implementação entre os integrantes.
+- Implementamos os loaders para os seis formatos previstos na Etapa 1: CSV, JSON, JSONL, Markdown, PDF e TXT.
+- Para os dados estruturados e semiestruturados, implementamos a ingestão de CSV, JSON e JSONL, adotando um registro por chunk e um ticket por chunk, conforme a natureza de cada fonte.
+- Para os documentos não estruturados, implementamos estratégias específicas de processamento e chunking para Markdown, PDF e TXT, buscando preservar seções, parágrafos e mensagens.
+- Padronizamos os metadados obrigatórios `source_file`, `doc_type`, `chunk_id` e `sensitivity`, acrescentando metadados específicos quando aplicáveis.
+- Integramos os loaders estruturados, semiestruturados e não estruturados em um único fluxo de ingestão.
+- O pipeline integrado gerou 5.721 chunks.
+- Realizamos testes para verificar a presença dos metadados obrigatórios e a unicidade dos identificadores dos chunks.
+- Cada integrante realizou commits próprios referentes à parte desenvolvida.
 
 **Ficou pendente:**
--
+- Gerar os embeddings dos documentos processados.
+- Construir e popular o índice vetorial utilizando FAISS.
+- Persistir o índice em disco utilizando `save_local`.
+- Implementar e testar a recarga do índice com `load_local`, sem realizar nova indexação.
+- Criar o script de sanidade da Etapa 1, contendo o total de chunks, a distribuição por `doc_type` e os cinco chunks mais similares para três perguntas de teste.
+- Revisar as dependências do projeto e atualizar o `requirements.txt` conforme necessário.
 
 **Bloqueios em aberto:**
--
+- Não permanecemos com bloqueios técnicos relacionados à ingestão ao final das atividades.
+- Durante o desenvolvimento, encontramos dificuldades relacionadas à instalação de dependências no Google Colab e à autenticação do GitHub para realização do `push`, mas esses problemas foram identificados e solucionados.
+- A indexação vetorial ainda não foi concluída e será retomada na continuidade da Etapa 1.
 
 **Próximo passo (início do encontro 2):**
--
+- Finalizar os itens ainda pendentes da Etapa 1 antes de avançar para a Etapa 2.
+- Gerar os embeddings dos 5.721 chunks, construir e persistir o índice FAISS e verificar sua recarga sem reindexação.
+- Executar o script de sanidade com três perguntas de teste e analisar os cinco resultados mais similares retornados para cada consulta.
+- Após validar o critério de pronto da Etapa 1, iniciar a implementação da busca híbrida, do Query Analyzer e da filtragem por metadados previstos para a Etapa 2.
 
 **Uso de assistentes de IA:**
--
+- Utilizamos o ChatGPT como ferramenta de apoio durante o desenvolvimento, principalmente na organização inicial dos loaders, interpretação de erros apresentados no Google Colab, revisão da integração entre os módulos e orientação sobre comandos Git.
+- As sugestões geradas pela IA foram revisadas e adaptadas de acordo com a estrutura real dos arquivos disponibilizados no repositório e com os requisitos técnicos definidos no guia do desafio.
+- Também utilizamos a IA como apoio para revisar a padronização dos metadados e organizar os testes de validação do pipeline integrado.
 
 ---
 
