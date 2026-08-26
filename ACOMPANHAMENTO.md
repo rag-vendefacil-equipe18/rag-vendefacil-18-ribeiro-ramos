@@ -185,6 +185,13 @@ Utilizei o ChatGPT como apoio na estruturação e revisão do Query Analyzer, in
 
 ### Relato individual - Eridalgo Ramos da Silva
 
+* **Atividade Complementar:** 
+  - Desenvolvi e validei o motor de busca híbrida combinando busca densa (FAISS com embeddings multilinguais) e busca esparsa (BM25Okapi).
+  - Implementei o algoritmo de Fusão de Classificação Recíproca (RRF) com parâmetro $k=60$ para unificar e reordenar os resultados de forma equilibrada.
+
+* **Encontro 2:**
+  - Integração bem-sucedida do motor de recuperação (`retrieve.py`) com o módulo `query_analyzer.py` desenvolvido pela colega, garantindo o suporte a filtros dinâmicos de metadados (`state`, `module`, `doc_type`) nas buscas.
+  - Testes de sanidade e validação cruzada no ambiente do Google Colab simulando consultas reais da plataforma VendeFácil.
 
 
 ### Resumo do dia (escrito em conjunto)
