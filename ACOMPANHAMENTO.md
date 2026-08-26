@@ -116,7 +116,9 @@ Durante essa atividade, utilizei o ChatGPT como apoio para interpretar erros de 
 
 ### Relato individual - Eridalgo Ramos da Silva
 
+Na Etapa 1, atuei ativamente junto à equipe no pipeline de ingestão heterogênea e na estruturação do armazenamento vetorial. Colaborei diretamente na geração e validação dos embeddings utilizando o modelo sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 para processar os chunks textuais. 
 
+Também participei da implementação da persistência do índice vetorial gerado pelo FAISS em disco (`save_local()`) e da validação do fluxo de recarga (`load_local()`), garantindo que a recuperação do índice ocorresse de forma eficiente sem a necessidade de reprocessar toda a base de 5.721 fragmentos a cada nova sessão no Google Colab. Além disso, auxiliei na construção e execução dos scripts de sanidade para auditar o volume total de dados, conferir a distribuição correta por tipo de documento (`doc_type`) e validar as primeiras consultas por similaridade. Durante o processo, utilizei ferramentas de IA como apoio na resolução de conflitos de dependências de pacotes e no ajuste fino da indexação local.
 
 ### Resumo da atividade (escrito em conjunto)
 
