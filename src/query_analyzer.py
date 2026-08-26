@@ -19,6 +19,7 @@ VALID_DOC_TYPES = {
     "ata",
     "policy",
     "email",
+    "sale",
 }
 
 VALID_STATES = {
@@ -51,82 +52,56 @@ VALID_PRIORITIES = {
 STATE_SYNONYMS = {
     "acre": "AC",
     "ac": "AC",
-
     "alagoas": "AL",
     "al": "AL",
-
     "amapa": "AP",
     "ap": "AP",
-
     "amazonas": "AM",
     "am": "AM",
-
     "bahia": "BA",
     "ba": "BA",
-
     "ceara": "CE",
     "ce": "CE",
-
     "distrito federal": "DF",
     "df": "DF",
-
     "espirito santo": "ES",
     "es": "ES",
-
     "goias": "GO",
     "go": "GO",
-
     "maranhao": "MA",
     "ma": "MA",
-
     "mato grosso": "MT",
     "mt": "MT",
-
     "mato grosso do sul": "MS",
     "ms": "MS",
-
     "minas gerais": "MG",
     "mg": "MG",
-
     "para": "PA",
     "pa": "PA",
-
     "paraiba": "PB",
     "pb": "PB",
-
     "parana": "PR",
     "pr": "PR",
-
     "pernambuco": "PE",
     "pe": "PE",
-
     "piaui": "PI",
     "pi": "PI",
-
     "rio de janeiro": "RJ",
     "rj": "RJ",
-
     "rio grande do norte": "RN",
     "rn": "RN",
-
     "rio grande do sul": "RS",
     "rs": "RS",
-
     "rondonia": "RO",
     "ro": "RO",
-
     "roraima": "RR",
     "rr": "RR",
-
     "santa catarina": "SC",
     "sc": "SC",
-
     "sao paulo": "SP",
     "sp": "SP",
-
     "sergipe": "SE",
     "se": "SE",
-
     "tocantins": "TO",
     "to": "TO",
 }
@@ -148,13 +123,16 @@ MODULE_SYNONYMS = {
     "pagamentos": "pay",
     "pagamento": "pay",
     "vendefacil pay": "pay",
+    "vende facil pay": "pay",
     "pay": "pay",
 
     "e-commerce": "ecommerce",
     "e commerce": "ecommerce",
     "loja virtual": "ecommerce",
+    "comercio eletronico": "ecommerce",
     "ecommerce": "ecommerce",
 
+    "analise de dados": "analytics",
     "analises": "analytics",
     "analise": "analytics",
     "relatorios": "analytics",
@@ -188,8 +166,8 @@ PRIORITY_SYNONYMS = {
     "alta": "alta",
     "alto": "alta",
 
-    "critica prioridade": "critica",
     "prioridade critica": "critica",
+    "critica prioridade": "critica",
     "criticas": "critica",
     "criticos": "critica",
     "critica": "critica",
@@ -202,6 +180,8 @@ PRIORITY_SYNONYMS = {
 # ============================================================
 
 STATUS_SYNONYMS = {
+    "em andamento": "Em Andamento",
+
     "abertos": "Aberto",
     "abertas": "Aberto",
     "aberto": "Aberto",
@@ -238,19 +218,18 @@ STATUS_SYNONYMS = {
 
 def normalizar_texto(texto: str) -> str:
     """
-    Normaliza texto para facilitar as comparações.
-
-    - converte para minúsculas;
+    Normaliza texto para comparação:
+    - minúsculas;
     - remove acentos;
     - remove espaços duplicados.
     """
 
+    if texto is None:
+        return ""
+
     texto = str(texto).lower().strip()
 
-    texto = unicodedata.normalize(
-        "NFKD",
-        texto
-    )
+    texto = unicodedata.normalize("NFKD", texto)
 
     texto = "".join(
         caractere
@@ -258,11 +237,7 @@ def normalizar_texto(texto: str) -> str:
         if not unicodedata.combining(caractere)
     )
 
-    texto = re.sub(
-        r"\s+",
-        " ",
-        texto
-    )
+    texto = re.sub(r"\s+", " ", texto)
 
     return texto
 
@@ -276,8 +251,7 @@ def encontrar_sinonimo(
     dicionario: dict
 ) -> Optional[str]:
     """
-    Procura palavras ou expressões completas.
-    Expressões maiores são verificadas primeiro.
+    Procura expressões maiores primeiro.
     """
 
     termos = sorted(
@@ -288,9 +262,7 @@ def encontrar_sinonimo(
 
     for termo in termos:
 
-        termo_normalizado = normalizar_texto(
-            termo
-        )
+        termo_normalizado = normalizar_texto(termo)
 
         padrao = (
             rf"(?<!\w)"
@@ -344,25 +316,16 @@ def extrair_module(texto: str) -> Optional[str]:
 
 def extrair_doc_type(texto: str) -> Optional[str]:
     """
-    Identifica o tipo principal de documento solicitado.
+    Identifica o tipo principal solicitado.
 
-    A lógica evita interpretar "clientes" como customer
-    quando a palavra aparece apenas como complemento.
+    Cliente/clientes NÃO vira automaticamente customer
+    quando aparece apenas como complemento.
 
-    Exemplo:
-    "tickets de clientes de MG"
-    -> ticket
-
-    "problemas para clientes de SP"
-    -> nenhum doc_type específico
-
-    "quais clientes de SP estão ativos?"
-    -> customer
+    Exemplos:
+    - tickets de clientes de MG -> ticket
+    - problemas para clientes de SP -> nenhum doc_type
+    - quais clientes de MG estão ativos? -> customer
     """
-
-    # --------------------------------------------------------
-    # Tipos explícitos de documento
-    # --------------------------------------------------------
 
     prioridades = [
         (
@@ -401,34 +364,30 @@ def extrair_doc_type(texto: str) -> Optional[str]:
             "employee",
             ["funcionarios", "funcionario"]
         ),
+        (
+            "sale",
+            ["vendas", "venda"]
+        ),
     ]
 
     for doc_type, termos in prioridades:
 
         for termo in termos:
 
+            termo_normalizado = normalizar_texto(termo)
+
             padrao = (
                 rf"(?<!\w)"
-                rf"{re.escape(termo)}"
+                rf"{re.escape(termo_normalizado)}"
                 rf"(?!\w)"
             )
 
             if re.search(padrao, texto):
-
                 if doc_type in VALID_DOC_TYPES:
                     return doc_type
 
     # --------------------------------------------------------
-    # CUSTOMER É TRATADO SEPARADAMENTE
-    # --------------------------------------------------------
-    #
-    # Só inferimos customer quando a pergunta claramente
-    # solicita os próprios clientes.
-    #
-    # Evita:
-    # "tickets de clientes"
-    # "problemas para clientes"
-    # "erros dos clientes"
+    # CUSTOMER: somente quando cliente é o objeto consultado
     # --------------------------------------------------------
 
     padroes_customer = [
@@ -463,7 +422,7 @@ def extrair_priority(texto: str) -> Optional[str]:
     )
 
     if valor in VALID_PRIORITIES:
-        return valor
+        return valor.capitalize()
 
     return None
 
@@ -486,13 +445,10 @@ def extrair_status(texto: str) -> Optional[str]:
 
 def analisar_pergunta(pergunta: str) -> dict:
     """
-    Recebe uma pergunta em linguagem natural e extrai
-    os filtros estruturados identificados.
+    Extrai filtros estruturados da pergunta.
     """
 
-    texto = normalizar_texto(
-        pergunta
-    )
+    texto = normalizar_texto(pergunta)
 
     filtros = {}
 
@@ -512,48 +468,12 @@ def analisar_pergunta(pergunta: str) -> dict:
         filtros["doc_type"] = doc_type
 
     if priority:
-        filtros["priority"] = (
-            priority.capitalize()
-        )
+        filtros["priority"] = priority
 
     if status:
         filtros["status"] = status
 
     return filtros
-
-
-# ============================================================
-# VALORES EXISTENTES NOS DOCUMENTOS
-# ============================================================
-
-def obter_valores_validos(documentos) -> dict:
-    """
-    Obtém os valores realmente existentes nos metadados
-    dos documentos carregados.
-    """
-
-    campos = [
-        "doc_type",
-        "state",
-        "module",
-        "priority",
-        "status",
-    ]
-
-    valores_validos = {}
-
-    for campo in campos:
-
-        valores_validos[campo] = {
-            normalizar_texto(
-                str(doc.metadata[campo])
-            )
-            for doc in documentos
-            if doc.metadata.get(campo)
-            not in (None, "")
-        }
-
-    return valores_validos
 
 
 # ============================================================
@@ -565,30 +485,43 @@ def validar_filtros(
     documentos
 ) -> dict:
     """
-    Mantém somente filtros cujos valores realmente
-    existem nos metadados dos documentos.
-    """
+    Valida filtros contra os valores realmente existentes
+    nos metadados.
 
-    valores_validos = obter_valores_validos(
-        documentos
-    )
+    A comparação é normalizada, mas o valor devolvido é
+    exatamente o valor canônico presente na base.
+
+    Exemplo:
+    Critica -> Crítica
+    """
 
     filtros_validados = {}
 
-    for campo, valor in filtros.items():
+    if not filtros:
+        return filtros_validados
 
-        if campo not in valores_validos:
-            continue
+    for campo, valor_extraido in filtros.items():
 
         valor_normalizado = normalizar_texto(
-            str(valor)
+            str(valor_extraido)
         )
 
-        if (
-            valor_normalizado
-            in valores_validos[campo]
-        ):
-            filtros_validados[campo] = valor
+        valores_reais = {
+            str(doc.metadata[campo]).strip()
+            for doc in documentos
+            if doc.metadata.get(campo)
+            not in (None, "")
+        }
+
+        for valor_real in valores_reais:
+
+            if (
+                normalizar_texto(valor_real)
+                == valor_normalizado
+            ):
+
+                filtros_validados[campo] = valor_real
+                break
 
     return filtros_validados
 
@@ -602,31 +535,26 @@ def analisar_e_validar(
     documentos
 ) -> dict:
     """
-    Fluxo completo do Query Analyzer:
-
+    Executa:
     pergunta
-        ↓
-    normalização
-        ↓
-    extração
-        ↓
-    validação contra valores reais
-        ↓
-    filtros finais
+      -> extração
+      -> normalização
+      -> validação
+      -> valor canônico da base
     """
 
-    filtros = analisar_pergunta(
+    filtros_extraidos = analisar_pergunta(
         pergunta
     )
 
     return validar_filtros(
-        filtros,
+        filtros_extraidos,
         documentos
     )
 
 
 # ============================================================
-# TESTE LOCAL
+# TESTES LOCAIS
 # ============================================================
 
 if __name__ == "__main__":
@@ -641,12 +569,11 @@ if __name__ == "__main__":
             "aparecem para clientes de São Paulo?"
         ),
         (
-            "Quais tickets críticos do módulo PDV existem "
-            "para clientes do Rio de Janeiro?"
+            "Quais tickets críticos do módulo de pagamento "
+            "existem para clientes do Rio de Janeiro?"
         ),
         (
-            "Quais chamados de alta prioridade "
-            "existem em MG?"
+            "Quais chamados de alta prioridade existem em MG?"
         ),
         (
             "Quais políticas falam sobre segurança?"
@@ -666,7 +593,7 @@ if __name__ == "__main__":
         print("PERGUNTA:")
         print(pergunta)
 
-        print("FILTROS:")
+        print("FILTROS EXTRAÍDOS:")
         print(
             analisar_pergunta(pergunta)
         )
