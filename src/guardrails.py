@@ -42,7 +42,6 @@ def aplicar_guardrails_lgpd(texto: str) -> dict:
     texto_mascarado = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[E-MAIL_REMOVIDO]', texto_mascarado)
     texto_mascarado = re.sub(r'\(\d{2}\)\s?\d{4,5}-\d{4}', '(__) _____-____', texto_mascarado)
     texto_mascarado = re.sub(r'(?i)(rua|avenida|av\.)[ \t]+[A-Za-z0-9 ]+', r'\1 [ENDEREÇO_OCULTO]', texto_mascarado)
-    texto_mascarado = re.sub(r'[Rr]\$\s?\d{1,3}(?:\.\d{3})*(?:,\d{2})?', 'R$ [VALOR_OCULTO]', texto_mascarado)
 
     # 3. RESPONDER
     return {
