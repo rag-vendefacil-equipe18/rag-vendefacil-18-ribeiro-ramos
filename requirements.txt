@@ -10,3 +10,4 @@ pypdf
 torch
 
 rank-bm25
+langchain-groq

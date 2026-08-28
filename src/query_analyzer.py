@@ -52,56 +52,83 @@ VALID_PRIORITIES = {
 STATE_SYNONYMS = {
     "acre": "AC",
     "ac": "AC",
+
     "alagoas": "AL",
     "al": "AL",
+
     "amapa": "AP",
     "ap": "AP",
+
     "amazonas": "AM",
     "am": "AM",
+
     "bahia": "BA",
     "ba": "BA",
+
     "ceara": "CE",
     "ce": "CE",
+
     "distrito federal": "DF",
     "df": "DF",
+
     "espirito santo": "ES",
     "es": "ES",
+
     "goias": "GO",
     "go": "GO",
+
     "maranhao": "MA",
     "ma": "MA",
+
     "mato grosso": "MT",
     "mt": "MT",
+
     "mato grosso do sul": "MS",
     "ms": "MS",
+
     "minas gerais": "MG",
     "mg": "MG",
-    "para": "PA",
+
+    # Não usamos "para" como sinônimo textual de Pará,
+    # pois conflita com a preposição "para".
     "pa": "PA",
+
     "paraiba": "PB",
     "pb": "PB",
+
     "parana": "PR",
     "pr": "PR",
+
     "pernambuco": "PE",
     "pe": "PE",
+
     "piaui": "PI",
     "pi": "PI",
+
     "rio de janeiro": "RJ",
     "rj": "RJ",
+
     "rio grande do norte": "RN",
     "rn": "RN",
+
     "rio grande do sul": "RS",
     "rs": "RS",
+
     "rondonia": "RO",
     "ro": "RO",
+
     "roraima": "RR",
     "rr": "RR",
+
     "santa catarina": "SC",
     "sc": "SC",
+
     "sao paulo": "SP",
     "sp": "SP",
+
     "sergipe": "SE",
     "se": "SE",
+
     "tocantins": "TO",
     "to": "TO",
 }
@@ -219,7 +246,7 @@ STATUS_SYNONYMS = {
 def normalizar_texto(texto: str) -> str:
     """
     Normaliza texto para comparação:
-    - minúsculas;
+    - converte para minúsculas;
     - remove acentos;
     - remove espaços duplicados.
     """
@@ -229,7 +256,10 @@ def normalizar_texto(texto: str) -> str:
 
     texto = str(texto).lower().strip()
 
-    texto = unicodedata.normalize("NFKD", texto)
+    texto = unicodedata.normalize(
+        "NFKD",
+        texto
+    )
 
     texto = "".join(
         caractere
@@ -237,7 +267,11 @@ def normalizar_texto(texto: str) -> str:
         if not unicodedata.combining(caractere)
     )
 
-    texto = re.sub(r"\s+", " ", texto)
+    texto = re.sub(
+        r"\s+",
+        " ",
+        texto
+    )
 
     return texto
 
@@ -251,7 +285,7 @@ def encontrar_sinonimo(
     dicionario: dict
 ) -> Optional[str]:
     """
-    Procura expressões maiores primeiro.
+    Procura expressões maiores antes das menores.
     """
 
     termos = sorted(
@@ -262,7 +296,9 @@ def encontrar_sinonimo(
 
     for termo in termos:
 
-        termo_normalizado = normalizar_texto(termo)
+        termo_normalizado = normalizar_texto(
+            termo
+        )
 
         padrao = (
             rf"(?<!\w)"
@@ -270,17 +306,64 @@ def encontrar_sinonimo(
             rf"(?!\w)"
         )
 
-        if re.search(padrao, texto):
+        if re.search(
+            padrao,
+            texto
+        ):
             return dicionario[termo]
 
     return None
 
 
 # ============================================================
+# EXTRAÇÃO DE CUSTOMER_ID
+# ============================================================
+
+def extrair_customer_id(
+    texto_original: str
+) -> Optional[str]:
+    """
+    Extrai identificadores no formato CUST + números.
+
+    Exemplos:
+    - CUST001
+    - cust001
+    - CUST092
+    - cliente CUST277
+
+    O resultado é retornado em letras maiúsculas.
+    """
+
+    if not texto_original:
+        return None
+
+    correspondencia = re.search(
+        r"\bCUST\d+\b",
+        str(texto_original),
+        flags=re.IGNORECASE
+    )
+
+    if not correspondencia:
+        return None
+
+    return correspondencia.group(0).upper()
+
+
+# ============================================================
 # EXTRAÇÃO DE STATE
 # ============================================================
 
-def extrair_state(texto: str) -> Optional[str]:
+def extrair_state(
+    texto: str
+) -> Optional[str]:
+    """
+    Extrai estado da pergunta.
+
+    A palavra "para" NÃO é interpretada como Pará,
+    evitando falsos positivos em frases como:
+
+    "Quais tickets existem para o CUST092?"
+    """
 
     valor = encontrar_sinonimo(
         texto,
@@ -297,7 +380,9 @@ def extrair_state(texto: str) -> Optional[str]:
 # EXTRAÇÃO DE MODULE
 # ============================================================
 
-def extrair_module(texto: str) -> Optional[str]:
+def extrair_module(
+    texto: str
+) -> Optional[str]:
 
     valor = encontrar_sinonimo(
         texto,
@@ -314,59 +399,99 @@ def extrair_module(texto: str) -> Optional[str]:
 # EXTRAÇÃO DE DOC_TYPE
 # ============================================================
 
-def extrair_doc_type(texto: str) -> Optional[str]:
+def extrair_doc_type(
+    texto: str
+) -> Optional[str]:
     """
-    Identifica o tipo principal solicitado.
+    Identifica o tipo documental principal solicitado.
 
-    Cliente/clientes NÃO vira automaticamente customer
-    quando aparece apenas como complemento.
+    Cliente/clientes não é transformado automaticamente
+    em customer quando aparece apenas como complemento.
 
     Exemplos:
-    - tickets de clientes de MG -> ticket
-    - problemas para clientes de SP -> nenhum doc_type
-    - quais clientes de MG estão ativos? -> customer
+
+    tickets de clientes de MG
+        -> ticket
+
+    problemas para clientes de SP
+        -> nenhum doc_type
+
+    quais clientes de MG estão ativos
+        -> customer
     """
 
     prioridades = [
         (
             "ticket",
-            ["tickets", "ticket", "chamados", "chamado"]
+            [
+                "tickets",
+                "ticket",
+                "chamados",
+                "chamado"
+            ]
         ),
         (
             "log",
-            ["logs", "log"]
+            [
+                "logs",
+                "log"
+            ]
         ),
         (
             "policy",
-            ["politicas", "politica"]
+            [
+                "politicas",
+                "politica"
+            ]
         ),
         (
             "manual",
-            ["manuais", "manual"]
+            [
+                "manuais",
+                "manual"
+            ]
         ),
         (
             "ata",
-            ["atas", "ata"]
+            [
+                "atas",
+                "ata"
+            ]
         ),
         (
             "email",
-            ["emails", "email"]
+            [
+                "emails",
+                "email"
+            ]
         ),
         (
             "product",
-            ["produtos", "produto"]
+            [
+                "produtos",
+                "produto"
+            ]
         ),
         (
             "store",
-            ["lojas", "loja"]
+            [
+                "lojas",
+                "loja"
+            ]
         ),
         (
             "employee",
-            ["funcionarios", "funcionario"]
+            [
+                "funcionarios",
+                "funcionario"
+            ]
         ),
         (
             "sale",
-            ["vendas", "venda"]
+            [
+                "vendas",
+                "venda"
+            ]
         ),
     ]
 
@@ -374,7 +499,9 @@ def extrair_doc_type(texto: str) -> Optional[str]:
 
         for termo in termos:
 
-            termo_normalizado = normalizar_texto(termo)
+            termo_normalizado = normalizar_texto(
+                termo
+            )
 
             padrao = (
                 rf"(?<!\w)"
@@ -382,29 +509,48 @@ def extrair_doc_type(texto: str) -> Optional[str]:
                 rf"(?!\w)"
             )
 
-            if re.search(padrao, texto):
+            if re.search(
+                padrao,
+                texto
+            ):
+
                 if doc_type in VALID_DOC_TYPES:
                     return doc_type
 
     # --------------------------------------------------------
-    # CUSTOMER: somente quando cliente é o objeto consultado
+    # CONSULTAS EXPLICITAMENTE SOBRE CLIENTES
     # --------------------------------------------------------
 
     padroes_customer = [
         r"\bquais clientes\b",
         r"\bqual cliente\b",
+
         r"\bliste os clientes\b",
         r"\blistar clientes\b",
+
         r"\bmostre os clientes\b",
         r"\bmostrar clientes\b",
+
         r"\bdados dos clientes\b",
         r"\binformacoes dos clientes\b",
+
         r"\bcadastro de clientes\b",
+
+        r"\binformacoes do cliente\b",
+        r"\binformacoes sobre o cliente\b",
+
+        r"\bdados do cliente\b",
+        r"\bdados sobre o cliente\b",
+
+        r"\bcadastro do cliente\b",
     ]
 
     for padrao in padroes_customer:
 
-        if re.search(padrao, texto):
+        if re.search(
+            padrao,
+            texto
+        ):
             return "customer"
 
     return None
@@ -414,7 +560,9 @@ def extrair_doc_type(texto: str) -> Optional[str]:
 # EXTRAÇÃO DE PRIORITY
 # ============================================================
 
-def extrair_priority(texto: str) -> Optional[str]:
+def extrair_priority(
+    texto: str
+) -> Optional[str]:
 
     valor = encontrar_sinonimo(
         texto,
@@ -431,7 +579,9 @@ def extrair_priority(texto: str) -> Optional[str]:
 # EXTRAÇÃO DE STATUS
 # ============================================================
 
-def extrair_status(texto: str) -> Optional[str]:
+def extrair_status(
+    texto: str
+) -> Optional[str]:
 
     return encontrar_sinonimo(
         texto,
@@ -443,35 +593,135 @@ def extrair_status(texto: str) -> Optional[str]:
 # QUERY ANALYZER
 # ============================================================
 
-def analisar_pergunta(pergunta: str) -> dict:
+def analisar_pergunta(
+    pergunta: str
+) -> dict:
     """
     Extrai filtros estruturados da pergunta.
+
+    Filtros atualmente suportados:
+    - customer_id
+    - state
+    - module
+    - doc_type
+    - priority
+    - status
     """
 
-    texto = normalizar_texto(pergunta)
+    texto = normalizar_texto(
+        pergunta
+    )
 
     filtros = {}
 
-    state = extrair_state(texto)
-    module = extrair_module(texto)
-    doc_type = extrair_doc_type(texto)
-    priority = extrair_priority(texto)
-    status = extrair_status(texto)
+    # --------------------------------------------------------
+    # EXTRAÇÕES
+    # --------------------------------------------------------
+
+    customer_id = extrair_customer_id(
+        pergunta
+    )
+
+    state = extrair_state(
+        texto
+    )
+
+    module = extrair_module(
+        texto
+    )
+
+    doc_type = extrair_doc_type(
+        texto
+    )
+
+    priority = extrair_priority(
+        texto
+    )
+
+    status = extrair_status(
+        texto
+    )
+
+    # --------------------------------------------------------
+    # CONSULTAS GENÉRICAS SOBRE CUSTOMER_ID
+    # --------------------------------------------------------
+    #
+    # Exemplo:
+    #
+    # "Quais informações existem sobre o cliente CUST001?"
+    #
+    # deve produzir:
+    #
+    # customer_id = CUST001
+    # doc_type = customer
+    #
+    # Mas:
+    #
+    # "Quais tickets existem para o CUST092?"
+    #
+    # continua sendo:
+    #
+    # customer_id = CUST092
+    # doc_type = ticket
+    # --------------------------------------------------------
+
+    if (
+        customer_id
+        and not doc_type
+    ):
+
+        padroes_consulta_cliente = [
+            r"\binformacoes\b.*\bcliente\b",
+            r"\bdados\b.*\bcliente\b",
+            r"\bcadastro\b.*\bcliente\b",
+
+            r"\binformacoes\b.*\bcust\d+\b",
+            r"\bdados\b.*\bcust\d+\b",
+            r"\bcadastro\b.*\bcust\d+\b",
+        ]
+
+        for padrao in padroes_consulta_cliente:
+
+            if re.search(
+                padrao,
+                texto
+            ):
+                doc_type = "customer"
+                break
+
+    # --------------------------------------------------------
+    # MONTA FILTROS
+    # --------------------------------------------------------
+
+    if customer_id:
+        filtros[
+            "customer_id"
+        ] = customer_id
 
     if state:
-        filtros["state"] = state
+        filtros[
+            "state"
+        ] = state
 
     if module:
-        filtros["module"] = module
+        filtros[
+            "module"
+        ] = module
 
     if doc_type:
-        filtros["doc_type"] = doc_type
+        filtros[
+            "doc_type"
+        ] = doc_type
 
     if priority:
-        filtros["priority"] = priority
+        filtros[
+            "priority"
+        ] = priority
 
     if status:
-        filtros["status"] = status
+        filtros[
+            "status"
+        ] = status
 
     return filtros
 
@@ -485,14 +735,20 @@ def validar_filtros(
     documentos
 ) -> dict:
     """
-    Valida filtros contra os valores realmente existentes
-    nos metadados.
+    Valida os filtros extraídos contra valores realmente
+    existentes nos metadados dos documentos.
 
-    A comparação é normalizada, mas o valor devolvido é
-    exatamente o valor canônico presente na base.
+    A comparação é normalizada.
 
-    Exemplo:
-    Critica -> Crítica
+    O valor devolvido é o valor canônico presente na base.
+
+    Exemplos:
+
+    Critica
+        -> Crítica
+
+    cust001
+        -> CUST001
     """
 
     filtros_validados = {}
@@ -503,24 +759,41 @@ def validar_filtros(
     for campo, valor_extraido in filtros.items():
 
         valor_normalizado = normalizar_texto(
-            str(valor_extraido)
+            str(
+                valor_extraido
+            )
         )
 
         valores_reais = {
-            str(doc.metadata[campo]).strip()
+            str(
+                doc.metadata[campo]
+            ).strip()
+
             for doc in documentos
-            if doc.metadata.get(campo)
-            not in (None, "")
+
+            if doc.metadata.get(
+                campo
+            )
+            not in (
+                None,
+                ""
+            )
         }
 
         for valor_real in valores_reais:
 
             if (
-                normalizar_texto(valor_real)
-                == valor_normalizado
+                normalizar_texto(
+                    valor_real
+                )
+                ==
+                valor_normalizado
             ):
 
-                filtros_validados[campo] = valor_real
+                filtros_validados[
+                    campo
+                ] = valor_real
+
                 break
 
     return filtros_validados
@@ -535,12 +808,17 @@ def analisar_e_validar(
     documentos
 ) -> dict:
     """
-    Executa:
+    Pipeline do Query Analyzer:
+
     pergunta
-      -> extração
-      -> normalização
-      -> validação
-      -> valor canônico da base
+        ↓
+    extração
+        ↓
+    normalização
+        ↓
+    validação nos metadados
+        ↓
+    filtros canônicos
     """
 
     filtros_extraidos = analisar_pergunta(
@@ -560,40 +838,72 @@ def analisar_e_validar(
 if __name__ == "__main__":
 
     perguntas = [
+
         (
             "Quais tickets de clientes de Minas Gerais "
             "estão relacionados ao módulo de estoque?"
         ),
+
         (
             "Quais problemas do módulo de pagamento "
             "aparecem para clientes de São Paulo?"
         ),
+
         (
             "Quais tickets críticos do módulo de pagamento "
             "existem para clientes do Rio de Janeiro?"
         ),
+
         (
             "Quais chamados de alta prioridade existem em MG?"
         ),
+
         (
             "Quais políticas falam sobre segurança?"
         ),
+
         (
             "Mostre os produtos relacionados ao estoque."
         ),
+
         (
             "Quais clientes de Minas Gerais estão ativos?"
+        ),
+
+        (
+            "Quais informações existem sobre o cliente CUST001?"
+        ),
+
+        (
+            "Quais tickets existem para o CUST092?"
+        ),
+
+        (
+            "Mostre os logs do cliente CUST277."
         ),
     ]
 
     for pergunta in perguntas:
 
-        print("\n" + "=" * 80)
-
-        print("PERGUNTA:")
-        print(pergunta)
-
-        print("FILTROS EXTRAÍDOS:")
         print(
-            analisar_pergunta(pergunta)
+            "\n"
+            + "=" * 80
+        )
+
+        print(
+            "PERGUNTA:"
+        )
+
+        print(
+            pergunta
+        )
+
+        print(
+            "FILTROS EXTRAÍDOS:"
+        )
+
+        print(
+            analisar_pergunta(
+                pergunta
+            )
         )
