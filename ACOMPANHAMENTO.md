@@ -243,30 +243,74 @@ Utilizei o ChatGPT como apoio na estruturação e revisão do Query Analyzer, in
 
 ---
 
-## Encontro 3 - AAAA-MM-DD
+## Encontro 3 - 2026-08-28
 
 **Etapa:** 3 - Síntese estruturada, evidência e guardrails de LGPD
 
 ### Relato individual - Maria Eduarda Ribeiro da Silva
 
+Neste encontro, fiquei responsável principalmente pela implementação da geração estruturada de respostas da Etapa 3. Implementei os modelos `SourceEvidence` e `RAGResponse` utilizando Pydantic, conforme o schema definido no desafio, e acrescentei um validador de consistência para garantir a relação correta entre `is_refusal`, `sources_used`, `confidence_level` e `refusal_reason`.
+
+Também implementei o fluxo de geração estruturada com LLM, utilizando o modelo `openai/gpt-oss-120b` por meio da Groq. Para garantir a rastreabilidade das respostas, desenvolvi a lógica de evidências contendo `filepath`, `chunk_id` e `quotation`, com validação para confirmar que cada citação corresponde literalmente a um trecho do chunk recuperado e respeita o limite definido no schema.
+
+Implementei ainda o mecanismo de retry para situações em que a resposta gerada não atende às validações do Pydantic ou apresenta evidências inválidas. Nesse fluxo, o erro identificado é utilizado como feedback para uma nova tentativa de geração, evitando que falhas de validação sejam simplesmente ignoradas.
+
+Durante os testes da geração estruturada, identifiquei também um problema no Query Analyzer da etapa anterior: consultas contendo identificadores como `CUST001` não estavam sendo filtradas corretamente. Ajustei a extração de `customer_id` e corrigi a interpretação indevida da palavra “para” como o estado do Pará, validando novamente consultas por cliente, ticket e log.
+
+Na integração com a implementação de guardrails desenvolvida pelo Eridalgo, participei da revisão das regras e dos testes do pipeline completo. Identificamos que valores monetários operacionais estavam sendo mascarados genericamente, o que impediria respostas permitidas envolvendo valores como MRR e totais de vendas. A regra foi ajustada para manter esses valores disponíveis quando não representam remuneração individual ou outro dado restrito.
+
+Após a integração, executei testes de recusa por LGPD, mascaramento, respostas permitidas, perguntas fora de escopo e respostas com evidências literais. Foram validadas recusas para solicitações de salário e PIX, mascaramento de e-mail e telefone e respostas permitidas relacionadas a tickets e operações da VendeFácil. Também confirmei que respostas não recusadas apresentam as fontes utilizadas e que recusas não apresentam evidências.
+
+Utilizei o ChatGPT como apoio na implementação e revisão da geração estruturada, na análise dos erros encontrados durante os testes, na integração entre o Pydantic, o LLM, as evidências e os guardrails e na organização da bateria final de testes. As sugestões foram revisadas e adaptadas à implementação existente e validadas no Google Colab antes dos commits e do envio ao repositório.
+
 ### Relato individual - Eridalgo Ramos da Silva
+
 
 ### Resumo do dia (escrito em conjunto)
 
 **Entregamos hoje:**
--
+
+- Implementamos os modelos Pydantic `SourceEvidence` e `RAGResponse` exigidos para a saída estruturada do pipeline.
+- Implementamos o validador de consistência entre `is_refusal`, `sources_used`, `confidence_level` e `refusal_reason`.
+- Implementamos a geração estruturada de respostas utilizando LLM.
+- Implementamos a citação obrigatória das evidências utilizadas por meio de `filepath`, `chunk_id` e `quotation`.
+- Validamos que as citações utilizadas correspondem literalmente aos chunks recuperados e respeitam o limite definido no schema.
+- Implementamos mecanismo de retry para respostas que não atendem às validações estruturais ou apresentam evidências inválidas.
+- Implementamos e revisamos os guardrails de LGPD para os comportamentos de recusa, mascaramento e resposta permitida.
+- Implementamos o tratamento de perguntas fora do escopo da VendeFácil.
+- Integramos os guardrails ao pipeline de recuperação e geração estruturada.
+- Ajustamos as regras de tratamento de valores monetários para não mascarar valores operacionais permitidos, mantendo a proteção de informações individuais restritas.
+- Ajustamos o Query Analyzer para reconhecer identificadores `customer_id` e corrigimos uma ambiguidade que interpretava a palavra “para” como o estado do Pará.
+- Executamos testes de recusa para dados restritos, incluindo salário e PIX.
+- Executamos testes de mascaramento de dados pessoais, incluindo e-mail e telefone.
+- Executamos testes de consultas permitidas relacionadas aos tickets e às operações da VendeFácil.
+- Executamos testes de perguntas fora de escopo.
+- Validamos a presença de evidências nas respostas permitidas e a ausência de evidências nas respostas recusadas.
+- Concluímos a integração da Etapa 3 e enviamos as implementações para a branch `main`.
 
 **Ficou pendente:**
--
+
+- Nenhuma pendência técnica referente ao critério principal de pronto da Etapa 3.
 
 **Bloqueios em aberto:**
--
+
+- Nenhum bloqueio técnico da Etapa 3 permanece em aberto.
+- Durante o desenvolvimento, foram identificados ajustes relacionados ao tratamento de valores monetários, citações contendo dados mascaráveis e interpretação de filtros pelo Query Analyzer. Os problemas identificados foram tratados durante a implementação e os testes.
 
 **Próximo passo (início do encontro 4):**
--
+
+- Iniciar a Etapa 4.
+- Construir o benchmark com 20 perguntas representativas.
+- Implementar a avaliação do pipeline utilizando os critérios da RAG Triad.
+- Desenvolver a interface de utilização do sistema.
+- Consolidar os resultados e preparar o relatório final.
+- Revisar o projeto para preparação do Demo Day.
 
 **Uso de assistentes de IA:**
--
+
+- Utilizamos o ChatGPT como ferramenta de apoio durante a Etapa 3, principalmente na revisão dos modelos Pydantic, integração da geração estruturada com os guardrails, interpretação de erros, revisão das regras de LGPD e elaboração dos testes.
+- A IA também foi utilizada como apoio na investigação de problemas encontrados no Query Analyzer, na validação das evidências literais e na organização da bateria final de testes.
+- As sugestões produzidas pela IA foram analisadas, adaptadas ao código existente e validadas por meio da execução no Google Colab antes de serem incorporadas ao projeto.
 
 ---
 
