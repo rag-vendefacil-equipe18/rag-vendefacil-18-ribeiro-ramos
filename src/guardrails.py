@@ -18,23 +18,30 @@ def aplicar_guardrails_lgpd(texto: str) -> dict:
     """Aplica as regras de mascaramento ou recusa (LGPD)."""
     texto_lower = texto.lower()
 
-    # 1. RECUSAR
-    termos_recusa = ["senha", "password", "token", "credencial", "diagnóstico", "doença", "prontuário"]
+    # 1. RECUSAR (Credenciais, Saúde, CPF, Finanças e PIX)
+    termos_recusa = ["senha", "password", "token", "credencial", "diagnóstico", "doença", "prontuário", "salário", "remuneração"]
     if any(termo in texto_lower for termo in termos_recusa):
         return {
             "status": "recusado",
-            "motivo": "Violação de política: tentativa de acesso a credenciais ou dados de saúde confidenciais.",
+            "motivo": "Violação de política: presença de credenciais, termos de saúde ou financeiros.",
             "resposta_segura": None
         }
 
-    # 2. MASCARAR
+    # Bloqueio imediato se encontrar CPF, Salário (R$) ou PIX/Banco via Regex
+    if re.search(r'\d{3}\.\d{3}\.\d{3}-\d{2}', texto) or \
+       re.search(r'[Rr]\$\s?\d{1,3}(?:\.\d{3})*(?:,\d{2})?', texto) or \
+       re.search(r'(?i)(pix:|agência|conta bancária)[ \t]*[\w\.-]+', texto):
+        return {
+            "status": "recusado",
+            "motivo": "Violação de política: identificação direta de CPF, valores financeiros ou dados bancários/PIX.",
+            "resposta_segura": None
+        }
+
+    # 2. MASCARAR (E-mail, telefone, endereço, cartão de crédito)
     texto_mascarado = texto
-    texto_mascarado = re.sub(r'\d{3}\.\d{3}\.\d{3}-\d{2}', '***.***.***-**', texto_mascarado)
     texto_mascarado = re.sub(r'\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}', '****.****.****.****', texto_mascarado)
     texto_mascarado = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[E-MAIL_REMOVIDO]', texto_mascarado)
     texto_mascarado = re.sub(r'\(\d{2}\)\s?\d{4,5}-\d{4}', '(__) _____-____', texto_mascarado)
-    texto_mascarado = re.sub(r'[Rr]\$\s?\d{1,3}(?:\.\d{3})*(?:,\d{2})?', 'R$ [VALOR_OCULTO]', texto_mascarado)
-    texto_mascarado = re.sub(r'(?i)(pix:|agência|conta bancária)[ \t]*[\w\.-]+', r'\1 [DADO_FINANCEIRO_OCULTO]', texto_mascarado)
     texto_mascarado = re.sub(r'(?i)(rua|avenida|av\.)[ \t]+[A-Za-z0-9 ]+', r'\1 [ENDEREÇO_OCULTO]', texto_mascarado)
 
     # 3. RESPONDER
