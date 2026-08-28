@@ -265,7 +265,16 @@ Utilizei o ChatGPT como apoio na implementação e revisão da geração estrutu
 
 ### Relato individual - Eridalgo Ramos da Silva
 
+* **Frente de Atuação:** Segurança, LGPD e Guardrails.
+* **Entregas Realizadas:**
+  - Desenvolvimento do módulo `src/guardrails.py` para atuar como barreira de proteção antes da geração com LLM.
+  - Implementação da função `verificar_fora_de_escopo` para identificação e recusa imediata de temas alheios à VendeFácil.
+  - Implementação da função `aplicar_guardrails_lgpd` cobrindo as 3 diretrizes: **Recusar, Mascarar e Responder**.
+  - Definição de regras de **Recusa Estrita**: Bloqueio categorizado para credenciais/senhas, termos de saúde, salário/remuneração individual, dados bancários e qualquer menção ou identificação de CPF e chave PIX.
+  - Definição de regras de **Mascaramento**: Anonimização de dados de contato (e-mails, telefones, endereços), cartões de crédito e valores monetários genéricos através de expressões regulares (Regex).
+  - Execução e validação da bateria de testes unitários adversariais no arquivo `notebooks/testes_guardrails.ipynb`, atestando a robustez dos filtros.
 
+    
 ### Resumo do dia (escrito em conjunto)
 
 **Entregamos hoje:**
