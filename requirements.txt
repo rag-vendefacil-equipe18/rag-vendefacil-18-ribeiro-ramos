@@ -11,3 +11,4 @@ torch
 
 rank-bm25
 langchain-groq
+google-genai
