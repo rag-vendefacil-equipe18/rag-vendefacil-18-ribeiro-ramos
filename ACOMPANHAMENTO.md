@@ -323,30 +323,41 @@ Utilizei o ChatGPT como apoio na implementação e revisão da geração estrutu
 
 ---
 
-## Encontro 4 - AAAA-MM-DD
+## Encontro 4 - 2026-08-31
 
 **Etapa:** 4 - Avaliação (RAG Triad), interface e relatório
 
 ### Relato individual - Maria Eduarda Ribeiro da Silva
+
+Neste encontro, implementei o arquivo `eval/run_benchmark.py` e a métrica de **Context Relevance**, comparando os `chunk_id` recuperados pelo sistema com os `chunk_id` esperados no ground truth. Também validei o funcionamento da métrica com testes isolados e confirmei o funcionamento da recuperação híbrida com o índice FAISS.
+
+Utilizei o ChatGPT como apoio na estruturação do benchmark, revisão da lógica do Context Relevance e resolução de problemas de ambiente e importação no Google Colab. As sugestões foram testadas antes do envio ao repositório.
+
+A execução completa das 20 questões ainda ficou pendente porque o arquivo oficial `benchmark/questions_and_ground_truth.json` ainda não está disponível no repositório.
 
 ### Relato individual - Eridalgo Ramos da Silva
 
 ### Resumo do dia (escrito em conjunto)
 
 **Entregamos hoje:**
--
+- Implementação inicial da estrutura de avaliação da Etapa 4.
+- Implementação e teste do Context Relevance.
+- Estrutura inicial do LLM-as-judge e da interface do chatbot.
 
 **Ficou pendente:**
--
+- Executar as 20 questões do benchmark oficial.
+- Gerar o `results.json` final e consolidar as métricas da RAG Triad.
+- Finalizar o relatório e os testes da interface integrada ao pipeline.
 
 **Bloqueios em aberto:**
--
+- O arquivo oficial `benchmark/questions_and_ground_truth.json` ainda não está disponível no repositório.
 
 **Preparação para o Demo Day:**
--
+- Estrutura inicial da interface criada.
+- Benchmark e relatório final serão concluídos após a disponibilização das questões oficiais.
 
 **Uso de assistentes de IA:**
--
+- Utilizamos o ChatGPT como apoio na implementação, revisão do código e interpretação de erros durante os testes.
 
 ---
 
