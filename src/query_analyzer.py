@@ -582,6 +582,43 @@ def extrair_priority(
 def extrair_status(
     texto: str
 ) -> Optional[str]:
+    """
+    Extrai status explícito da consulta.
+
+    Diferencia o status atual de um registro de expressões
+    que apenas descrevem uma ação passada.
+
+    Exemplos:
+    - "tickets estão abertos" -> status Aberto
+    - "tickets abertos atualmente" -> status Aberto
+    - "tickets foram abertos por clientes" -> sem filtro de status
+    """
+
+    texto = normalizar_texto(
+        texto
+    )
+
+    # Expressões em que "aberto" indica uma ação histórica,
+    # e não necessariamente o status atual do registro.
+    padroes_abertura_historica = [
+        r"\bfoi\s+aberto\b",
+        r"\bfoi\s+aberta\b",
+        r"\bforam\s+abertos\b",
+        r"\bforam\s+abertas\b",
+        r"\btinha\s+sido\s+aberto\b",
+        r"\btinha\s+sido\s+aberta\b",
+        r"\baberto\s+por\b",
+        r"\baberta\s+por\b",
+        r"\babertos\s+por\b",
+        r"\babertas\s+por\b",
+    ]
+
+    for padrao in padroes_abertura_historica:
+        if re.search(
+            padrao,
+            texto
+        ):
+            return None
 
     return encontrar_sinonimo(
         texto,

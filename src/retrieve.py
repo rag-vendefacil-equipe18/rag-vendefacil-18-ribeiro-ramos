@@ -5,7 +5,10 @@ from langchain_community.retrievers import BM25Retriever
 
 from ingest import carregar_todos_documentos
 from load_index import carregar_indice
-from query_analyzer import analisar_e_validar
+try:
+    from .query_analyzer import analisar_e_validar
+except ImportError:
+    from query_analyzer import analisar_e_validar
 
 
 # ============================================================
