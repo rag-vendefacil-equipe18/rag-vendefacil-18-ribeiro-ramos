@@ -1,310 +1,98 @@
+
 import json
 import sys
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+
+# ============================================================
+# CAMINHOS DO PROJETO
+# ============================================================
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT_DIR / "src"
+
+# Permite executar:
+# python eval/run_benchmark.py
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 
-BENCHMARK_PATH = ROOT_DIR / "benchmark" / "questions_and_ground_truth.json"
-RESULTS_PATH = ROOT_DIR / "eval" / "results.json"
+BENCHMARK_PATH = (
+    ROOT_DIR
+    / "benchmark"
+    / "questions_and_ground_truth.json"
+)
+
+RESULTS_PATH = (
+    ROOT_DIR
+    / "eval"
+    / "results.json"
+)
 
 
-def calcular_context_relevance(chunks_recuperados, chunks_esperados):
+# ============================================================
+# UTILITÁRIOS
+# ============================================================
+
+def normalizar_caminho(valor: Any) -> str:
     """
-    Context Relevance:
-    compara os chunk_ids recuperados com os chunk_ids esperados.
-
-    Fórmula:
-        chunks esperados encontrados / total de chunks esperados
-
-    Retorna None quando a questão não possui chunks esperados,
-    como pode ocorrer em recusas LGPD ou fora de escopo.
+    Normaliza caminhos para facilitar a comparação entre
+    expected_sources e source_file dos documentos recuperados.
     """
 
-    recuperados = set(str(x) for x in chunks_recuperados)
-    esperados = set(str(x) for x in chunks_esperados)
+    if valor is None:
+        return ""
 
-    if not esperados:
+    caminho = str(valor).strip().replace("\\", "/")
+
+    while caminho.startswith("./"):
+        caminho = caminho[2:]
+
+    return caminho.lower()
+
+
+def nome_arquivo(valor: Any) -> str:
+    """
+    Retorna apenas o nome final do arquivo.
+    Exemplo:
+    data/structured/products.json -> products.json
+    """
+
+    caminho = normalizar_caminho(valor)
+
+    if not caminho:
+        return ""
+
+    return caminho.split("/")[-1]
+
+
+def serializar_pydantic(objeto: Any) -> Any:
+    """
+    Converte modelos Pydantic e outros objetos em estruturas
+    serializáveis para JSON.
+    """
+
+    if objeto is None:
         return None
 
-    encontrados = recuperados.intersection(esperados)
+    if hasattr(objeto, "model_dump"):
+        return objeto.model_dump()
 
-    return round(
-        len(encontrados) / len(esperados),
-        4
-    )
+    if hasattr(objeto, "dict"):
+        return objeto.dict()
 
+    return objeto
 
-def carregar_benchmark(caminho=BENCHMARK_PATH):
-    if not caminho.exists():
-        raise FileNotFoundError(
-            f"Benchmark não encontrado em: {caminho}"
-        )
 
-    with caminho.open("r", encoding="utf-8") as arquivo:
-        dados = json.load(arquivo)
-
-    if isinstance(dados, list):
-        questoes = dados
-
-    elif isinstance(dados, dict):
-        questoes = (
-            dados.get("questions")
-            or dados.get("perguntas")
-            or dados.get("benchmark")
-        )
-
-    else:
-        questoes = None
-
-    if not isinstance(questoes, list):
-        raise ValueError(
-            "Formato do benchmark não reconhecido."
-        )
-
-    if len(questoes) != 20:
-        print(
-            f"⚠️ Foram encontradas {len(questoes)} questões. "
-            "O benchmark oficial esperado possui 20."
-        )
-
-    return questoes
-
-
-def extrair_pergunta(item):
-    return (
-        item.get("question")
-        or item.get("pergunta")
-        or item.get("query")
-    )
-
-
-def extrair_id(item, indice):
-    return str(
-        item.get("id")
-        or item.get("question_id")
-        or f"Q{indice:02d}"
-    )
-
-
-def extrair_tipo(item):
-    return (
-        item.get("type")
-        or item.get("tipo")
-        or item.get("category")
-        or item.get("categoria")
-        or "nao_informado"
-    )
-
-
-def normalizar_chunk_ids(valor):
-    if valor is None:
-        return []
-
-    if isinstance(valor, str):
-        return [valor]
-
-    if isinstance(valor, list):
-        resultado = []
-
-        for item in valor:
-            if isinstance(item, str):
-                resultado.append(item)
-
-            elif isinstance(item, dict):
-                chunk_id = (
-                    item.get("chunk_id")
-                    or item.get("id")
-                )
-
-                if chunk_id:
-                    resultado.append(str(chunk_id))
-
-        return resultado
-
-    return []
-
-
-def extrair_chunks_esperados(item):
-    candidatos = [
-        item.get("expected_chunk_ids"),
-        item.get("chunk_ids"),
-        item.get("relevant_chunk_ids"),
-        item.get("expected_chunks"),
-    ]
-
-    ground_truth = item.get("ground_truth")
-
-    if isinstance(ground_truth, dict):
-        candidatos.extend([
-            ground_truth.get("expected_chunk_ids"),
-            ground_truth.get("chunk_ids"),
-            ground_truth.get("relevant_chunk_ids"),
-            ground_truth.get("expected_chunks"),
-        ])
-
-    for candidato in candidatos:
-        chunks = normalizar_chunk_ids(candidato)
-
-        if chunks:
-            return chunks
-
-    return []
-
-
-def extrair_chunks_recuperados(resultado_busca):
-    chunks = []
-
-    for item in resultado_busca.get("rrf", []):
-        if isinstance(item, (tuple, list)):
-            doc = item[0]
-        else:
-            doc = item
-
-        metadata = getattr(doc, "metadata", {}) or {}
-
-        chunk_id = metadata.get("chunk_id")
-
-        if chunk_id:
-            chunks.append(str(chunk_id))
-
-    return chunks
-
-
-def extrair_contexto(resultado_busca):
-    trechos = []
-
-    for posicao, item in enumerate(
-        resultado_busca.get("rrf", []),
-        start=1
-    ):
-        if isinstance(item, (tuple, list)):
-            doc = item[0]
-        else:
-            doc = item
-
-        metadata = getattr(doc, "metadata", {}) or {}
-        conteudo = getattr(doc, "page_content", "")
-
-        trechos.append(
-            f"[Trecho {posicao}]\n"
-            f"chunk_id: {metadata.get('chunk_id')}\n"
-            f"source_file: {metadata.get('source_file')}\n"
-            f"{conteudo}"
-        )
-
-    return "\n\n".join(trechos)
-
-
-def serializar_rag_response(resposta):
-    if hasattr(resposta, "model_dump"):
-        return resposta.model_dump()
-
-    if hasattr(resposta, "dict"):
-        return resposta.dict()
-
-    raise TypeError(
-        "Resposta do RAG não é um modelo Pydantic reconhecido."
-    )
-
-
-def executar_questao(item, indice, usar_judge=True):
-    from retrieve import buscar_hibrido
-    from generate import gerar_resposta
-
-    pergunta = extrair_pergunta(item)
-
-    if not pergunta:
-        raise ValueError(
-            f"Questão {indice} sem texto de pergunta."
-        )
-
-    questao_id = extrair_id(item, indice)
-    tipo = extrair_tipo(item)
-
-    chunks_esperados = extrair_chunks_esperados(item)
-
-    resultado_busca = buscar_hibrido(
-        pergunta,
-        usar_filtros=True,
-        k=5,
-        fetch_k=500
-    )
-
-    chunks_recuperados = extrair_chunks_recuperados(
-        resultado_busca
-    )
-
-    context_relevance = calcular_context_relevance(
-        chunks_recuperados,
-        chunks_esperados
-    )
-
-    contexto = extrair_contexto(resultado_busca)
-
-    resposta = gerar_resposta(
-        pergunta,
-        usar_filtros=True,
-        k=5,
-        fetch_k=500
-    )
-
-    resposta_dict = serializar_rag_response(resposta)
-
-    answer_relevance = None
-    groundedness = None
-
-    if usar_judge:
-        from eval.judge import (
-            evaluate_answer_relevance,
-            evaluate_groundedness
-        )
-
-        answer_relevance = evaluate_answer_relevance(
-            pergunta,
-            resposta_dict.get("answer", "")
-        )
-
-        groundedness = evaluate_groundedness(
-            contexto,
-            resposta_dict.get("answer", "")
-        )
-
-    return {
-        "id": questao_id,
-        "type": tipo,
-        "question": pergunta,
-
-        "ground_truth": {
-            "expected_chunk_ids": chunks_esperados
-        },
-
-        "retrieval": {
-            "filters": resultado_busca.get("filtros", {}),
-            "retrieved_chunk_ids": chunks_recuperados
-        },
-
-        "response": resposta_dict,
-
-        "metrics": {
-            "context_relevance": context_relevance,
-            "answer_relevance": answer_relevance,
-            "groundedness": groundedness
-        }
-    }
-
-
-def media(valores):
-    valores = [
-        valor
-        for valor in valores
-        if isinstance(valor, (int, float))
-    ]
+def media(valores: List[float]) -> Optional[float]:
+    """
+    Calcula média e retorna None caso a lista esteja vazia.
+    """
 
     if not valores:
         return None
@@ -315,7 +103,464 @@ def media(valores):
     )
 
 
-def gerar_resumo(resultados):
+# ============================================================
+# LEITURA DO BENCHMARK OFICIAL
+# ============================================================
+
+def carregar_benchmark() -> List[Dict[str, Any]]:
+    """
+    Carrega o arquivo oficial disponibilizado para a Etapa 4.
+    """
+
+    if not BENCHMARK_PATH.exists():
+        raise FileNotFoundError(
+            "Arquivo do benchmark não encontrado em:\n"
+            f"{BENCHMARK_PATH}"
+        )
+
+    with BENCHMARK_PATH.open(
+        "r",
+        encoding="utf-8"
+    ) as arquivo:
+        dados = json.load(arquivo)
+
+    if not isinstance(dados, dict):
+        raise ValueError(
+            "O benchmark oficial deve possuir um objeto JSON "
+            "na raiz."
+        )
+
+    questoes = dados.get("questions")
+
+    if not isinstance(questoes, list):
+        raise ValueError(
+            "Campo 'questions' não encontrado ou inválido "
+            "no benchmark."
+        )
+
+    print(
+        f"Benchmark: {dados.get('benchmark_name', 'N/A')}"
+    )
+
+    print(
+        f"Versão: {dados.get('version', 'N/A')}"
+    )
+
+    print(
+        f"Quantidade real de questões: {len(questoes)}"
+    )
+
+    # O texto da atividade menciona 20 questões,
+    # porém o arquivo oficial atualmente possui 24.
+    if len(questoes) != 20:
+        print(
+            "⚠️ Atenção: a orientação menciona 20 questões, "
+            f"mas o arquivo contém {len(questoes)}."
+        )
+
+        print(
+            "O script NÃO removerá questões automaticamente."
+        )
+
+    return questoes
+
+
+# ============================================================
+# EXTRAÇÃO DOS RESULTADOS DO RETRIEVER
+# ============================================================
+
+def extrair_documentos_rrf(
+    resultado_busca: Dict[str, Any]
+) -> List[Any]:
+    """
+    Recupera os documentos provenientes do ranking RRF.
+
+    O buscar_hibrido retorna:
+        rrf = [(Document, score), ...]
+    """
+
+    ranking = resultado_busca.get("rrf", [])
+
+    documentos = []
+
+    for item in ranking:
+
+        if isinstance(item, (list, tuple)):
+
+            if len(item) >= 1:
+                documentos.append(item[0])
+
+        else:
+            documentos.append(item)
+
+    return documentos
+
+
+def extrair_chunk_ids(
+    documentos: List[Any]
+) -> List[str]:
+    """
+    Extrai os chunk_id dos documentos recuperados.
+    """
+
+    chunk_ids = []
+
+    for documento in documentos:
+
+        metadata = getattr(
+            documento,
+            "metadata",
+            {}
+        ) or {}
+
+        chunk_id = metadata.get("chunk_id")
+
+        if chunk_id is not None:
+            chunk_ids.append(str(chunk_id))
+
+    return chunk_ids
+
+
+def extrair_sources_recuperados(
+    documentos: List[Any]
+) -> List[str]:
+    """
+    Extrai source_file dos documentos recuperados.
+    """
+
+    fontes = []
+
+    for documento in documentos:
+
+        metadata = getattr(
+            documento,
+            "metadata",
+            {}
+        ) or {}
+
+        source_file = metadata.get(
+            "source_file"
+        )
+
+        if source_file:
+            fontes.append(str(source_file))
+
+    return fontes
+
+
+def documento_para_dict(
+    documento: Any
+) -> Dict[str, Any]:
+    """
+    Converte um Document do LangChain para uma estrutura
+    simples e serializável.
+    """
+
+    metadata = getattr(
+        documento,
+        "metadata",
+        {}
+    ) or {}
+
+    conteudo = getattr(
+        documento,
+        "page_content",
+        ""
+    )
+
+    return {
+        "chunk_id": metadata.get("chunk_id"),
+        "source_file": metadata.get("source_file"),
+        "doc_type": metadata.get("doc_type"),
+        "sensitivity": metadata.get("sensitivity"),
+        "metadata": metadata,
+        "content": conteudo
+    }
+
+
+# ============================================================
+# CONTEXT RELEVANCE
+# ============================================================
+
+def fonte_corresponde(
+    fonte_recuperada: str,
+    fonte_esperada: str
+) -> bool:
+    """
+    Compara source_file recuperado com expected_source.
+
+    Aceita tanto:
+        data/structured/products.json
+
+    quanto:
+        products.json
+
+    pois a ingestão pode armazenar caminhos em formatos diferentes.
+    """
+
+    recuperada = normalizar_caminho(
+        fonte_recuperada
+    )
+
+    esperada = normalizar_caminho(
+        fonte_esperada
+    )
+
+    if not recuperada or not esperada:
+        return False
+
+    # Correspondência exata
+    if recuperada == esperada:
+        return True
+
+    # Correspondência pelo final do caminho
+    if recuperada.endswith(esperada):
+        return True
+
+    if esperada.endswith(recuperada):
+        return True
+
+    # Correspondência pelo nome do arquivo
+    return (
+        nome_arquivo(recuperada)
+        ==
+        nome_arquivo(esperada)
+    )
+
+
+def calcular_context_relevance(
+    sources_recuperados: List[str],
+    sources_esperados: List[str]
+) -> Optional[float]:
+    """
+    Calcula Context Relevance usando as fontes esperadas
+    fornecidas pelo benchmark oficial.
+
+    O benchmark disponibilizado não contém expected_chunk_ids.
+    Por isso, nesta implementação, verificamos qual proporção
+    das expected_sources apareceu entre os chunks recuperados.
+
+    Fórmula:
+
+        fontes esperadas recuperadas
+        ----------------------------
+        total de fontes esperadas
+
+    Resultado:
+        0.0 até 1.0
+
+    Para perguntas fora do escopo, expected_sources é vazio.
+    Nesses casos a métrica é None.
+    """
+
+    if not sources_esperados:
+        return None
+
+    encontradas = 0
+
+    for fonte_esperada in sources_esperados:
+
+        encontrou = any(
+            fonte_corresponde(
+                fonte_recuperada,
+                fonte_esperada
+            )
+            for fonte_recuperada
+            in sources_recuperados
+        )
+
+        if encontrou:
+            encontradas += 1
+
+    score = (
+        encontradas
+        /
+        len(sources_esperados)
+    )
+
+    return round(score, 4)
+
+
+# ============================================================
+# EXECUÇÃO DE UMA QUESTÃO
+# ============================================================
+
+def executar_questao(
+    item: Dict[str, Any],
+    indice: int,
+    usar_judge: bool = False
+) -> Dict[str, Any]:
+    """
+    Executa recuperação + geração para uma questão.
+
+    Nesta etapa individual da Eduarda:
+    - executa o Retriever;
+    - calcula Context Relevance;
+    - executa a geração RAG;
+    - deixa Answer Relevance e Groundedness como None.
+
+    As duas métricas do LLM-as-judge serão integradas depois
+    da parte do Eridalgo.
+    """
+
+    from retrieve import buscar_hibrido
+    from generate import gerar_resposta
+
+    questao_id = item.get(
+        "id",
+        f"Q{indice:02d}"
+    )
+
+    categoria = item.get(
+        "category",
+        "Sem categoria"
+    )
+
+    pergunta = item.get(
+        "question",
+        ""
+    )
+
+    expected_sources = item.get(
+        "expected_sources",
+        []
+    ) or []
+
+    expected_metadata = item.get(
+        "expected_metadata",
+        {}
+    ) or {}
+
+    ground_truth_answer = item.get(
+        "ground_truth_answer",
+        ""
+    )
+
+    key_points = item.get(
+        "key_points_for_evaluation",
+        []
+    ) or []
+
+    if not pergunta:
+        raise ValueError(
+            f"Questão {questao_id} sem campo 'question'."
+        )
+
+    # --------------------------------------------------------
+    # 1. RETRIEVAL
+    # --------------------------------------------------------
+
+    busca = buscar_hibrido(
+        pergunta,
+        usar_filtros=True,
+        k=5,
+        fetch_k=500
+    )
+
+    documentos = extrair_documentos_rrf(
+        busca
+    )
+
+    chunk_ids = extrair_chunk_ids(
+        documentos
+    )
+
+    sources_recuperados = (
+        extrair_sources_recuperados(
+            documentos
+        )
+    )
+
+    context_relevance = (
+        calcular_context_relevance(
+            sources_recuperados,
+            expected_sources
+        )
+    )
+
+    # --------------------------------------------------------
+    # 2. GERAÇÃO RAG
+    # --------------------------------------------------------
+
+    resposta = gerar_resposta(
+        pergunta,
+        usar_filtros=True,
+        k=5,
+        fetch_k=500
+    )
+
+    resposta_serializada = (
+        serializar_pydantic(
+            resposta
+        )
+    )
+
+    # --------------------------------------------------------
+    # 3. RESULTADO
+    # --------------------------------------------------------
+
+    resultado = {
+        "id": questao_id,
+        "type": categoria,
+        "question": pergunta,
+
+        "ground_truth": {
+            "expected_sources": expected_sources,
+            "expected_metadata": expected_metadata,
+            "ground_truth_answer": ground_truth_answer,
+            "key_points_for_evaluation": key_points
+        },
+
+        "retrieval": {
+            "filters": busca.get(
+                "filtros",
+                {}
+            ),
+
+            "retrieved_chunk_ids": chunk_ids,
+
+            "retrieved_sources": (
+                sources_recuperados
+            ),
+
+            "documents": [
+                documento_para_dict(doc)
+                for doc in documentos
+            ]
+        },
+
+        "response": resposta_serializada,
+
+        "metrics": {
+            "context_relevance": (
+                context_relevance
+            ),
+
+            "context_relevance_basis": (
+                "expected_sources"
+            ),
+
+            # Serão preenchidos na integração
+            # com o trabalho do Eridalgo.
+            "answer_relevance": None,
+            "groundedness": None
+        }
+    }
+
+    return resultado
+
+
+# ============================================================
+# RESUMO
+# ============================================================
+
+def gerar_resumo(
+    resultados: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Gera resumo global e por categoria.
+    """
+
     context_global = []
     answer_global = []
     grounded_global = []
@@ -330,66 +575,134 @@ def gerar_resumo(resultados):
     )
 
     for resultado in resultados:
+
         tipo = resultado["type"]
 
         por_tipo[tipo]["quantidade"] += 1
 
         metricas = resultado["metrics"]
 
-        contexto = metricas.get("context_relevance")
+        contexto = metricas.get(
+            "context_relevance"
+        )
 
-        if isinstance(contexto, (int, float)):
-            context_global.append(contexto)
-            por_tipo[tipo]["context_relevance"].append(contexto)
+        if isinstance(
+            contexto,
+            (int, float)
+        ):
+            context_global.append(
+                contexto
+            )
 
-        answer = metricas.get("answer_relevance")
+            por_tipo[tipo][
+                "context_relevance"
+            ].append(contexto)
+
+        answer = metricas.get(
+            "answer_relevance"
+        )
 
         if isinstance(answer, dict):
+
             score = answer.get("score")
 
-            if isinstance(score, (int, float)):
-                answer_global.append(score)
-                por_tipo[tipo]["answer_relevance"].append(score)
+            if isinstance(
+                score,
+                (int, float)
+            ):
+                answer_global.append(
+                    score
+                )
 
-        grounded = metricas.get("groundedness")
+                por_tipo[tipo][
+                    "answer_relevance"
+                ].append(score)
 
-        if isinstance(grounded, dict):
+        grounded = metricas.get(
+            "groundedness"
+        )
+
+        if isinstance(
+            grounded,
+            dict
+        ):
+
             score = grounded.get("score")
 
-            if isinstance(score, (int, float)):
-                grounded_global.append(score)
-                por_tipo[tipo]["groundedness"].append(score)
+            if isinstance(
+                score,
+                (int, float)
+            ):
+                grounded_global.append(
+                    score
+                )
+
+                por_tipo[tipo][
+                    "groundedness"
+                ].append(score)
 
     resumo_por_tipo = {}
 
     for tipo, dados in por_tipo.items():
+
         resumo_por_tipo[tipo] = {
-            "quantidade": dados["quantidade"],
+            "quantidade": (
+                dados["quantidade"]
+            ),
+
             "context_relevance": media(
                 dados["context_relevance"]
             ),
+
             "answer_relevance": media(
                 dados["answer_relevance"]
             ),
+
             "groundedness": media(
                 dados["groundedness"]
             )
         }
 
     return {
-        "total_questions": len(resultados),
+        "total_questions": len(
+            resultados
+        ),
+
+        "evaluation_status": (
+            "partial_without_llm_judge"
+        ),
+
+        "context_relevance_basis": (
+            "expected_sources"
+        ),
 
         "rag_triad": {
-            "context_relevance": media(context_global),
-            "answer_relevance": media(answer_global),
-            "groundedness": media(grounded_global)
+            "context_relevance": media(
+                context_global
+            ),
+
+            "answer_relevance": media(
+                answer_global
+            ),
+
+            "groundedness": media(
+                grounded_global
+            )
         },
 
         "by_type": resumo_por_tipo
     }
 
 
-def salvar_resultados(resultados, resumo):
+# ============================================================
+# SALVAR RESULTADOS
+# ============================================================
+
+def salvar_resultados(
+    resultados: List[Dict[str, Any]],
+    resumo: Dict[str, Any]
+) -> None:
+
     payload = {
         "summary": resumo,
         "results": resultados
@@ -404,22 +717,39 @@ def salvar_resultados(resultados, resumo):
         "w",
         encoding="utf-8"
     ) as arquivo:
+
         json.dump(
             payload,
             arquivo,
             ensure_ascii=False,
-            indent=2
+            indent=2,
+            default=str
         )
 
     print(
-        f"\n✅ Resultados salvos em: {RESULTS_PATH}"
+        "\n✅ Resultados salvos em:"
+    )
+
+    print(
+        RESULTS_PATH
     )
 
 
+# ============================================================
+# EXECUÇÃO DO BENCHMARK
+# ============================================================
+
 def executar_benchmark(
-    usar_judge=True,
-    limite=None
-):
+    usar_judge: bool = False,
+    limite: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Executa todas as questões presentes no arquivo oficial.
+
+    usar_judge permanece disponível para a integração futura,
+    mas nesta versão individual não altera o processamento.
+    """
+
     questoes = carregar_benchmark()
 
     if limite is not None:
@@ -430,13 +760,20 @@ def executar_benchmark(
     total = len(questoes)
 
     print(
-        f"\nExecutando benchmark com {total} questões."
+        f"\nExecutando benchmark com "
+        f"{total} questões."
+    )
+
+    print(
+        "Modo atual: Context Relevance "
+        "+ geração RAG, sem LLM-as-judge."
     )
 
     for indice, item in enumerate(
         questoes,
         start=1
     ):
+
         print(
             "\n"
             + "=" * 70
@@ -446,18 +783,32 @@ def executar_benchmark(
             f"Questão {indice}/{total}"
         )
 
+        print(
+            "ID:",
+            item.get(
+                "id",
+                indice
+            )
+        )
+
+        print(
+            "Pergunta:",
+            item.get(
+                "question",
+                ""
+            )
+        )
+
         try:
+
             resultado = executar_questao(
                 item,
                 indice,
                 usar_judge=usar_judge
             )
 
-            resultados.append(resultado)
-
-            print(
-                "ID:",
-                resultado["id"]
+            resultados.append(
+                resultado
             )
 
             print(
@@ -466,18 +817,81 @@ def executar_benchmark(
             )
 
             print(
+                "Chunks recuperados:",
+                resultado[
+                    "retrieval"
+                ][
+                    "retrieved_chunk_ids"
+                ]
+            )
+
+            print(
+                "Fontes recuperadas:",
+                resultado[
+                    "retrieval"
+                ][
+                    "retrieved_sources"
+                ]
+            )
+
+            print(
+                "Fontes esperadas:",
+                resultado[
+                    "ground_truth"
+                ][
+                    "expected_sources"
+                ]
+            )
+
+            print(
                 "Context Relevance:",
-                resultado["metrics"][
+                resultado[
+                    "metrics"
+                ][
                     "context_relevance"
                 ]
             )
 
         except Exception as erro:
+
             print(
-                f"❌ Erro na questão {indice}: {erro}"
+                f"❌ Erro na questão "
+                f"{indice}: {erro}"
             )
 
-    resumo = gerar_resumo(resultados)
+            resultados.append(
+                {
+                    "id": item.get(
+                        "id",
+                        f"Q{indice:02d}"
+                    ),
+
+                    "type": item.get(
+                        "category",
+                        "Sem categoria"
+                    ),
+
+                    "question": item.get(
+                        "question",
+                        ""
+                    ),
+
+                    "error": str(erro),
+
+                    "metrics": {
+                        "context_relevance": None,
+                        "context_relevance_basis": (
+                            "expected_sources"
+                        ),
+                        "answer_relevance": None,
+                        "groundedness": None
+                    }
+                }
+            )
+
+    resumo = gerar_resumo(
+        resultados
+    )
 
     salvar_resultados(
         resultados,
@@ -505,5 +919,11 @@ def executar_benchmark(
     }
 
 
+# ============================================================
+# MAIN
+# ============================================================
+
 if __name__ == "__main__":
-    executar_benchmark()
+    executar_benchmark(
+        usar_judge=False
+    )
