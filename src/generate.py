@@ -5,9 +5,9 @@ from typing import Callable, Optional
 from pydantic import ValidationError
 from langchain_groq import ChatGroq
 
-from schema import RAGResponse, SourceEvidence
-from retrieve import buscar_hibrido
-from guardrails import (
+from src.schema import RAGResponse, SourceEvidence
+from src.retrieve import buscar_hibrido
+from src.guardrails import (
     aplicar_guardrails_lgpd,
     verificar_fora_de_escopo,
 )
