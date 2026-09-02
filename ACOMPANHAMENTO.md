@@ -337,6 +337,14 @@ A execução completa das 20 questões ainda ficou pendente porque o arquivo ofi
 
 ### Relato individual - Eridalgo Ramos da Silva
 
+Neste encontro, cumpri as minhas atribuições iniciais da Etapa 4, seguindo a divisão de tarefas:
+
+* **Implementar Answer Relevance com LLM-as-judge** e **Implementar Groundedness com LLM-as-judge**[cite: 1]: Atualizei o arquivo `judge.py` para utilizar a SDK moderna `google-genai` com o modelo Gemini 3.6 Flash.
+* **Testar o judge com respostas reais**[cite: 1]: Validei o funcionamento do juiz no Colab, obtendo sucesso nos testes de cenários com respostas corretas, evasivas, fundamentadas e alucinadas.
+* **Criar a interface em app/** e **Testar a interface**[cite: 1]: Construí o arquivo `app/app.py` utilizando a biblioteca Gradio para gerar a interface visual do chatbot. Testei a aplicação gerando um link público e deixei uma função *mock* (simulada) preparada para receber o motor de recuperação.
+* **Fazer commit e push da implementação dele**[cite: 1]: Adicionei as dependências `google-genai` e `gradio` ao `requirements.txt` sem afetar o trabalho da colega e fiz o envio de toda a minha estrutura (juiz e interface) para as respectivas pastas no GitHub.
+* **Escrever o relato individual dele no ACOMPANHAMENTO.md**[cite: 1]: Relato atualizado. Fico no aguardo da finalização do pipeline de recuperação para iniciarmos a etapa de "Integrar as métricas do Eridalgo ao run_benchmark.py"[cite: 1].
+
 ### Resumo do dia (escrito em conjunto)
 
 **Entregamos hoje:**
