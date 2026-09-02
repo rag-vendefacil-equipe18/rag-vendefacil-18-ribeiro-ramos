@@ -10,9 +10,18 @@ import streamlit as st
 # ============================================================
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT_DIR / "src"
 
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+# Permite:
+# - imports como "from src.generate ..."
+# - imports internos antigos como "from ingest ..."
+# - execução via Streamlit, Colab e scripts do projeto
+for caminho in (
+    str(ROOT_DIR),
+    str(SRC_DIR),
+):
+    if caminho not in sys.path:
+        sys.path.insert(0, caminho)
 
 
 # ============================================================
@@ -247,6 +256,44 @@ if pergunta:
                     ],
                     False
                 )
+
+                # --------------------------------------------
+                # GARANTE MENSAGEM VISÍVEL EM TODA RECUSA
+                # --------------------------------------------
+
+                if is_refusal and not str(resposta or "").strip():
+
+                    motivo_recusa = obter_primeiro(
+                        dados,
+                        [
+                            "refusal_reason",
+                            "motivo_recusa"
+                        ],
+                        ""
+                    )
+
+                    if motivo_recusa == "lgpd":
+                        resposta = (
+                            "Não posso fornecer essa informação porque ela "
+                            "envolve dados pessoais sensíveis ou restritos."
+                        )
+
+                    elif motivo_recusa in {
+                        "fora_do_escopo",
+                        "out_of_scope",
+                        "sem_evidencia",
+                        "no_evidence"
+                    }:
+                        resposta = (
+                            "Não encontrei informações confiáveis na base "
+                            "da VendeFácil para responder a essa pergunta."
+                        )
+
+                    else:
+                        resposta = (
+                            "Não posso responder a essa pergunta com segurança "
+                            "com base nas informações disponíveis."
+                        )
 
                 confidence = obter_primeiro(
                     dados,
