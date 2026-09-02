@@ -370,3 +370,28 @@ Neste encontro, cumpri as minhas atribuições iniciais da Etapa 4, seguindo a d
 ---
 
 *TIC em Trilhas · PUC-Rio · Instituto ECOA · MCTI Futuro · Softex*
+
+---
+
+## 02/09/2026 - Maria Eduarda Ribeiro da Silva
+
+### Relato individual
+
+Hoje concentrei minhas atividades na continuidade da Etapa 4 do Mini Desafio RAG VendeFácil, especialmente na preparação do benchmark oficial, correções no pipeline e desenvolvimento da interface de demonstração.
+
+Inicialmente, trabalhei na adaptação do arquivo `eval/run_benchmark.py` para a estrutura do benchmark oficial disponibilizado. Durante essa etapa, identifiquei que o arquivo contém 24 questões, de Q01 a Q24, embora a orientação da atividade mencione 20 perguntas. Também observei que o JSON disponibiliza campos como `expected_sources`, `expected_metadata`, `ground_truth_answer` e `key_points_for_evaluation`, mas não apresenta `expected_chunk_ids`, apesar de a descrição do Context Relevance mencionar comparação por `chunk_id`. Por esse motivo, mantive no código uma avaliação parcial baseada nas fontes esperadas, deixando explícito que esse resultado ainda não corresponde à métrica final por chunk.
+
+Durante os testes do benchmark, identifiquei um problema no Query Analyzer na questão relacionada aos tickets de Minas Gerais. A expressão “foram abertos” estava sendo interpretada como se o usuário solicitasse apenas tickets com status atual “Aberto”. Corrigi a função responsável pela identificação de status para diferenciar uma ação histórica de uma solicitação de filtro por status atual. Após a correção, a consulta passou a recuperar corretamente os tickets esperados, incluindo TCK-1001, TCK-1002 e TCK-1004.
+
+Também corrigi problemas de importação entre os módulos do projeto que surgiram durante a execução da aplicação fora do contexto original dos scripts. Padronizei as importações utilizadas pelo módulo de geração e ajustei os caminhos utilizados pela interface para permitir a execução adequada do pipeline completo.
+
+Em seguida, desenvolvi e testei uma interface em Streamlit para demonstração do RAG, mantendo separada a interface em Gradio desenvolvida pelo meu colega. A interface Streamlit foi integrada à função `gerar_resposta()` e permite realizar perguntas, visualizar a resposta, consultar as evidências utilizadas e acessar detalhes técnicos da saída estruturada.
+
+Foram realizados testes funcionais com três cenários diferentes. Em uma pergunta sobre os produtos oferecidos pela VendeFácil, o sistema retornou uma resposta fundamentada nos documentos recuperados, apresentando arquivos de origem e `chunk_id`. Em uma pergunta solicitando o salário de uma funcionária, o sistema recusou corretamente a resposta por envolver informação pessoal restrita. Também foi testada uma pergunta fora da base de conhecimento, sobre a capital da França, e o sistema recusou a resposta por ausência de evidências. Foi ajustada a interface para que recusas com campo `answer` vazio também apresentem uma mensagem compreensível ao usuário.
+
+Utilizei IA generativa como apoio para análise dos erros apresentados durante os testes, revisão da organização dos imports, elaboração de trechos de código, identificação da causa do filtro incorreto e estruturação da interface. As sugestões foram verificadas por meio de execução no Colab, testes de compilação, testes de importação em processo limpo e testes funcionais do chatbot. Foram mantidas apenas as alterações que passaram nesses testes.
+
+### Pendências identificadas
+
+Ainda é necessário integrar a avaliação com o LLM-as-judge desenvolvida pelo meu colega para calcular Answer Relevance e Groundedness. Também permanece necessária a confirmação sobre a quantidade oficial de questões do benchmark e sobre a ausência de `expected_chunk_ids` para o cálculo final do Context Relevance.
+
